@@ -6,7 +6,20 @@
 - [`build-plan.md`](build-plan.md) — план сборки и тестов: промпты, модели, задачи на потом
 - [`setup.sh`](setup.sh), [`setup.ps1`](setup.ps1) — установщик на компьютере ученика: macOS и Linux, Windows
 - [`preflight.sh`](preflight.sh), [`server.sh`](server.sh) — части установщика, которые работают на сервере
+- [`github.sh`](github.sh) — подключение сервера к GitHub, ученик запускает сам
 - [`LICENSE`](LICENSE) — MIT
+
+## GitHub на сервере
+
+Когда на сервере понадобятся свои репозитории, в терминале VS Code, подключённом к серверу, запустите:
+
+```
+curl -fsSL <BASE_URL>/github.sh | bash
+```
+
+`<BASE_URL>` — тот же адрес, что в команде установки. Скрипт поставит GitHub CLI и покажет код. Откройте https://github.com/login/device в любом браузере, хоть на своём компьютере, введите код и нажмите Authorize. Потом скрипт настроит `git` и спросит имя и почту для коммитов. После этого `gh repo clone`, `git pull` и `git push` работают без пароля.
+
+Claude Code на сервере тоже сможет пользоваться этим доступом. Убрать доступ: `gh auth logout`.
 
 ## Второй компьютер
 
