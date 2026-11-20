@@ -142,6 +142,12 @@ die() {
 # shellcheck disable=SC2329 # called by the ERR trap
 on_error() {
   local rc=$? line=$1
+  # bash 3.2 also runs the trap inside $(...) and pipelines, even when the caller
+  # handles the error with "|| ...". Only the main shell reports errors; a subshell
+  # keeps its exit code for the caller.
+  if [ "${BASH_SUBSHELL:-0}" -gt 0 ]; then
+    return 0
+  fi
   trap - ERR
   die "Something unexpected went wrong (setup.sh line $line, code $rc)." "Read the messages above."
 }
@@ -1082,9 +1088,10 @@ action_setup() {
 
   step 10 "Opening the server desktop"
   capture remote "$(server_cmd info)"
-  if [ "$CAPTURE_RC" = 0 ]; then
-    parse_info
+  if [ "$CAPTURE_RC" != 0 ]; then
+    die "Cannot connect to the server with \"ssh $ALIAS\": $(first_error_line)" "Check your internet connection and run the command again."
   fi
+  parse_info
   if [ "$SRV_DESKTOP" = 1 ]; then
     open_desktop
   else

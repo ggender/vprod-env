@@ -1247,9 +1247,10 @@ function Invoke-Setup {
 
     Write-Step 10 'Opening the server desktop'
     Invoke-RemoteQuiet (Get-ServerCommand 'info')
-    if ($script:CapRc -eq 0) {
-        Read-ServerInfo
+    if ($script:CapRc -ne 0) {
+        Stop-Setup ('Cannot connect to the server with "ssh {0}": {1}' -f $script:AliasName, (Get-FirstErrorLine)) 'Check your internet connection and run the command again.'
     }
+    Read-ServerInfo
     if ($script:SrvDesktop -eq '1') {
         Open-Desktop
     }
