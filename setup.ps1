@@ -1155,7 +1155,8 @@ function Show-Summary {
     Write-Colored "What's next" Cyan
     Write-Host ('  1. In VS Code, open Remote Explorer, find "{0}" and click Connect. If VS Code asks for the platform, choose Linux.' -f $script:AliasName)
     Write-Host ('  2. Open the folder /home/{0}/projects.' -f $script:SrvUser)
-    Write-Host ('  3. In Extensions, find Claude Code and click "Install in SSH: {0}".' -f $script:AliasName)
+    Write-Host '  3. Open the terminal in VS Code (Terminal -> New Terminal) and run claude.'
+    Write-Host ('  Optional: to use Claude in the editor too, find Claude Code in Extensions and click "Install in SSH: {0}".' -f $script:AliasName)
     Write-Host ''
     Write-Colored 'Other commands' Cyan
     Write-Host '  Open the server desktop again:'
