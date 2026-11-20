@@ -2,22 +2,60 @@
 
 Опциональная среда курса: проекты и Claude Code на сервере, VS Code ученика подключается к нему через Remote-SSH.
 
-- [`requirements.md`](requirements.md) — требования к установщику: сводка для проверки и детали для агента
-- [`build-plan.md`](build-plan.md) — план сборки и тестов: промпты, модели, задачи на потом
-- [`setup.sh`](setup.sh), [`setup.ps1`](setup.ps1) — установщик на компьютере ученика: macOS и Linux, Windows
-- [`preflight.sh`](preflight.sh), [`server.sh`](server.sh) — части установщика, которые работают на сервере
-- [`github.sh`](github.sh) — подключение сервера к GitHub, ученик запускает сам
-- [`LICENSE`](LICENSE) — MIT
+## Установка
+
+Что нужно:
+- Сервер: Ubuntu 24.04 или 26.04, процессор x86_64 (Intel или AMD), IPv4-адрес и пароль root. Память от 4 ГБ (на 2 ГБ установщик предупредит и спросит, продолжать ли), свободно на диске от 20 ГБ.
+- Компьютер: macOS, Linux или Windows 10/11. VS Code лучше поставить заранее, иначе установщик подскажет, что сделать.
+
+macOS и Linux — в обычном Терминале:
+
+```
+curl -fsSL https://raw.githubusercontent.com/ggender/vprod-env/v0.1.0/setup.sh | bash
+```
+
+Windows — в Windows PowerShell (для PowerShell 7 замените в конце `powershell` на `pwsh`):
+
+```
+[Net.ServicePointManager]::SecurityProtocol='Tls12'; iwr -useb https://raw.githubusercontent.com/ggender/vprod-env/v0.1.0/setup.ps1 -OutFile "$env:TEMP\vprod-setup.ps1"; powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\vprod-setup.ps1"
+```
+
+Что будет происходить:
+1. Установщик спросит адрес сервера, порт, имя пользователя и имя подключения. Enter оставляет значение по умолчанию: `22`, `vprod`, `vprod`.
+2. Один раз попросит пароль root. Символы при вводе не видны, так и должно быть. Дальше вход только по ключу, пароль больше не нужен.
+3. Сервер настраивается 5–10 минут. Если связь оборвётся, установщик переподключится сам. Если команда остановилась с ошибкой, запустите её ещё раз: она продолжит с того места, где остановилась.
+4. В конце в браузере откроется рабочий стол сервера с окном Claude Code. Войдите в Claude там: страница входа откроется в Firefox на сервере. Не открывайте ссылку входа в своём браузере. Потом нажмите Enter в терминале.
+
+После установки, в VS Code:
+1. Remote Explorer → `vprod` → Connect. Если спросит платформу — Linux.
+2. Откройте папку `/home/vprod/projects`.
+3. Terminal → New Terminal, запустите `claude`.
+
+По желанию можно поставить расширение Claude Code на сервер: в расширениях найти Claude Code → `Install in SSH: vprod`.
+
+## Другие команды
+
+Та же команда установки с действием в конце: на macOS и Linux `bash -s -- <действие>` вместо `bash`, на Windows `-Action <действие>`.
+
+- `desktop` — открыть рабочий стол сервера снова
+- `login` — войти в Claude заново
+- `check` — проверить сервер
+
+Например, на macOS:
+
+```
+curl -fsSL https://raw.githubusercontent.com/ggender/vprod-env/v0.1.0/setup.sh | bash -s -- check
+```
 
 ## GitHub на сервере
 
-Когда на сервере понадобятся свои репозитории, в терминале VS Code, подключённом к серверу, запустите:
+Когда на сервере понадобятся свои репозитории, запустите в терминале VS Code, подключённом к серверу:
 
 ```
-curl -fsSL <BASE_URL>/github.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ggender/vprod-env/v0.1.0/github.sh | bash
 ```
 
-`<BASE_URL>` — тот же адрес, что в команде установки. Скрипт поставит GitHub CLI и покажет код. Откройте https://github.com/login/device в любом браузере, хоть на своём компьютере, введите код и нажмите Authorize. Потом скрипт настроит `git` и спросит имя и почту для коммитов. После этого `gh repo clone`, `git pull` и `git push` работают без пароля.
+Скрипт поставит GitHub CLI и покажет код. Откройте https://github.com/login/device в любом браузере, хоть на своём компьютере, введите код и нажмите Authorize. Потом скрипт настроит `git` и спросит имя и почту для коммитов. После этого `gh repo clone`, `git pull` и `git push` работают без пароля.
 
 Claude Code на сервере тоже сможет пользоваться этим доступом. Убрать доступ: `gh auth logout`.
 
@@ -39,4 +77,24 @@ Claude Code на сервере тоже сможет пользоваться �
 
 ## Если что-то пошло не так
 
+- **Команда остановилась с ошибкой.** Если в конце написано `Nothing is broken. Run the same command again to continue.` — запустите ту же команду ещё раз. Если ошибка после установки — запустите действие `check`, оно покажет, что не так.
 - **Красная плашка «noVNC encountered an error»**, в тексте ошибки есть `chrome-extension://`. Ошибку выдаёт расширение браузера, а не сервер: noVNC показывает любую ошибку на странице. Не закрывайте терминал с установщиком и откройте ту же ссылку `http://127.0.0.1:…/vnc.html…` в Safari или в окне инкогнито Chrome, где расширения выключены.
+
+## Версия до релиза
+
+Ссылки выше ведут на релиз `v0.1.0`. Чтобы запустить версию из конкретного коммита, подставьте его в ссылку и передайте тот же адрес в `VPROD_BASE_URL`, иначе установщик скачает серверные скрипты из релиза:
+
+```
+B=https://raw.githubusercontent.com/ggender/vprod-env/<коммит>; curl -fsSL $B/setup.sh | VPROD_BASE_URL=$B bash
+```
+
+На Windows: `$env:VPROD_BASE_URL='<адрес>'` перед командой установки, и в `iwr` тот же адрес вместо релизного.
+
+## Файлы
+
+- [`setup.sh`](setup.sh), [`setup.ps1`](setup.ps1) — установщик на компьютере ученика: macOS и Linux, Windows
+- [`preflight.sh`](preflight.sh), [`server.sh`](server.sh) — части установщика, которые работают на сервере
+- [`github.sh`](github.sh) — подключение сервера к GitHub, ученик запускает сам
+- [`requirements.md`](requirements.md) — требования к установщику: сводка для проверки и детали для агента
+- [`build-plan.md`](build-plan.md) — план сборки и тестов: промпты, модели, задачи на потом
+- [`LICENSE`](LICENSE) — MIT
