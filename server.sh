@@ -1528,7 +1528,7 @@ action_follow() {
 }
 
 action_info() {
-  local prepared=0 hardened=0
+  local prepared=0 hardened=0 claude_login=0
   read_state
   if phase_ok prepare; then
     prepared=1
@@ -1536,11 +1536,16 @@ action_info() {
   if phase_ok harden; then
     hardened=1
   fi
+  # The same test as in vprod-claude-login: the file exists after the Claude login.
+  if [ -n "$STATE_USER" ] && [ -s "/home/$STATE_USER/.claude/.credentials.json" ]; then
+    claude_login=1
+  fi
   say "version=$VPROD_ENV_VERSION"
   say "user=$STATE_USER"
   say "desktop=$STATE_DESKTOP"
   say "prepared=$prepared"
   say "hardened=$hardened"
+  say "claude_login=$claude_login"
 }
 
 action_check() {

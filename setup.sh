@@ -60,6 +60,7 @@ SRV_VERSION=""
 SRV_DESKTOP=""
 SRV_PREPARED=0
 SRV_HARDENED=0
+SRV_CLAUDE_LOGIN=0
 PHASE_RC=0
 C_BOLD=""
 C_GREEN=""
@@ -674,7 +675,12 @@ choose_login() {
   methods=${methods%%")"*}
   case ",$methods," in
     *,password,* | *,keyboard-interactive,*) NEED_PASSWORD=1 ;;
-    *) die "This server is already set up with another key, and it does not accept passwords." "To get access back, use the console in the control panel of your provider." ;;
+    *)
+      # Root is already off: running the command again does not help without the new key.
+      ERROR_HINT=none
+      die "This server is already set up with another key, and it does not accept passwords." \
+        "From your first computer, add the key of this computer to the server: $KEY.pub. If you have no other computer, use the console in the control panel of your provider."
+      ;;
   esac
 }
 
@@ -736,12 +742,14 @@ parse_info() {
   SRV_DESKTOP=""
   SRV_PREPARED=0
   SRV_HARDENED=0
+  SRV_CLAUDE_LOGIN=0
   while IFS= read -r line; do
     case $line in
       version=*) SRV_VERSION=${line#version=} ;;
       desktop=*) SRV_DESKTOP=${line#desktop=} ;;
       prepared=*) SRV_PREPARED=${line#prepared=} ;;
       hardened=*) SRV_HARDENED=${line#hardened=} ;;
+      claude_login=*) SRV_CLAUDE_LOGIN=${line#claude_login=} ;;
     esac
   done <<<"$CAPTURE_OUT"
 }
@@ -919,9 +927,10 @@ stop_tunnel() {
   fi
 }
 
-# open_desktop: SSH tunnel to noVNC on the server, then the browser.
+# open_desktop <logged_in>: SSH tunnel to noVNC on the server, then the browser.
+# <logged_in> is 1 when Claude is already logged in and no login steps are needed.
 open_desktop() {
-  local port=6080 rc last_rc="" tried=0 i ok=0 url
+  local logged_in=$1 port=6080 rc last_rc="" tried=0 i ok=0 url
   need_tty
   ERROR_HINT=check
   while [ "$port" -le 6099 ]; do
@@ -969,7 +978,11 @@ open_desktop() {
   say "The server desktop opens in your browser. If it does not open, copy this address into the browser:"
   say "  $url"
   warning "Do all login steps inside the server window. Do not open the login link in your own browser."
-  say "In the server window, a terminal with Claude Code opens. Follow its steps. The login page opens in Firefox on the server."
+  if [ "$logged_in" = 1 ]; then
+    say "Claude Code is already logged in."
+  else
+    say "In the server window, a terminal with Claude Code opens. Follow its steps. The login page opens in Firefox on the server."
+  fi
   say "To paste text into the server window: click the small arrow on the left side of the noVNC screen, then the clipboard button. Paste your text into the box. Then paste it in the server window."
   printf '\nPress Enter when you are done.'
   read -r _ </dev/tty || true
@@ -1094,7 +1107,7 @@ action_setup() {
   fi
   parse_info
   if [ "$SRV_DESKTOP" = 1 ]; then
-    open_desktop
+    open_desktop "$SRV_CLAUDE_LOGIN"
   else
     say "The desktop is turned off on this server. Skipped."
   fi
@@ -1160,7 +1173,7 @@ action_remote() {
         say "The desktop is turned off on this server."
         exit 1
       fi
-      open_desktop
+      open_desktop "$SRV_CLAUDE_LOGIN"
       ;;
     login)
       if [ "$SRV_DESKTOP" != 1 ]; then
@@ -1172,7 +1185,7 @@ action_remote() {
       if [ "$rc" != 0 ]; then
         die "Cannot open the Claude login window on the server." "Read the message above."
       fi
-      open_desktop
+      open_desktop 0
       ;;
   esac
 }

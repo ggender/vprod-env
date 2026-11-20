@@ -79,6 +79,7 @@ $script:SrvVersion = ''
 $script:SrvDesktop = ''
 $script:SrvPrepared = '0'
 $script:SrvHardened = '0'
+$script:SrvClaudeLogin = '0'
 $script:PhaseRc = 0
 $script:FollowCount = 0
 $script:ExitCode = 0
@@ -793,7 +794,9 @@ function Select-Login {
         $script:NeedPassword = $true
         return
     }
-    Stop-Setup 'This server is already set up with another key, and it does not accept passwords.' 'To get access back, use the console in the control panel of your provider.'
+    # Root is already off: running the command again does not help without the new key.
+    $script:ErrorHint = 'none'
+    Stop-Setup 'This server is already set up with another key, and it does not accept passwords.' ('From your first computer, add the key of this computer to the server: {0}.pub. If you have no other computer, use the console in the control panel of your provider.' -f $script:KeyPath)
 }
 
 # The first root login with the password; adds our key for root.
@@ -867,12 +870,14 @@ function Read-ServerInfo {
     $script:SrvDesktop = ''
     $script:SrvPrepared = '0'
     $script:SrvHardened = '0'
+    $script:SrvClaudeLogin = '0'
     foreach ($line in ($script:CapOut -split "`n")) {
         $line = $line.Trim()
         if ($line.StartsWith('version=')) { $script:SrvVersion = $line.Substring(8) }
         elseif ($line.StartsWith('desktop=')) { $script:SrvDesktop = $line.Substring(8) }
         elseif ($line.StartsWith('prepared=')) { $script:SrvPrepared = $line.Substring(9) }
         elseif ($line.StartsWith('hardened=')) { $script:SrvHardened = $line.Substring(9) }
+        elseif ($line.StartsWith('claude_login=')) { $script:SrvClaudeLogin = $line.Substring(13) }
     }
 }
 
@@ -1063,7 +1068,9 @@ function Stop-Tunnel {
 }
 
 # SSH tunnel to noVNC on the server, then the browser.
+# -LoggedIn: Claude is already logged in, so no login steps are needed.
 function Open-Desktop {
+    param([bool]$LoggedIn = $false)
     $script:ErrorHint = 'check'
     $port = 6080
     $tried = $false
@@ -1125,7 +1132,12 @@ function Open-Desktop {
     Write-Host 'The server desktop opens in your browser. If it does not open, copy this address into the browser:'
     Write-Host ('  ' + $url)
     Show-KeyWarning 'Do all login steps inside the server window. Do not open the login link in your own browser.'
-    Write-Host 'In the server window, a terminal with Claude Code opens. Follow its steps. The login page opens in Firefox on the server.'
+    if ($LoggedIn) {
+        Write-Host 'Claude Code is already logged in.'
+    }
+    else {
+        Write-Host 'In the server window, a terminal with Claude Code opens. Follow its steps. The login page opens in Firefox on the server.'
+    }
     Write-Host 'To paste text into the server window: click the small arrow on the left side of the noVNC screen, then the clipboard button. Paste your text into the box. Then paste it in the server window.'
     Write-Host ''
     Write-Host 'Press Enter when you are done.' -NoNewline
@@ -1253,7 +1265,7 @@ function Invoke-Setup {
     }
     Read-ServerInfo
     if ($script:SrvDesktop -eq '1') {
-        Open-Desktop
+        Open-Desktop -LoggedIn ($script:SrvClaudeLogin -eq '1')
     }
     else {
         Write-Host 'The desktop is turned off on this server. Skipped.'
@@ -1330,7 +1342,7 @@ function Invoke-RemoteAction {
             Stop-Setup 'Cannot open the Claude login window on the server.' 'Read the message above.'
         }
     }
-    Open-Desktop
+    Open-Desktop -LoggedIn (($Name -ne 'login') -and ($script:SrvClaudeLogin -eq '1'))
 }
 
 function Invoke-Main {
